@@ -1,5 +1,5 @@
 import { json, LoaderFunctionArgs, redirect } from '@remix-run/router'
-import { Outlet, useLocation } from '@remix-run/react'
+import { Outlet, useLoaderData, useLocation } from '@remix-run/react'
 import { AppSidebar } from '~/components/app-sidebar.tsx'
 import {
   Breadcrumb,
@@ -30,6 +30,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function Page() {
+  const { user } = useLoaderData<typeof loader>()
   const location = useLocation()
   const pathSegments = location.pathname.split('/').filter(Boolean)
 
@@ -37,7 +38,7 @@ export default function Page() {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={user} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
