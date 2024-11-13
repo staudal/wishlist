@@ -14,6 +14,18 @@ builder.Configuration
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true) // Load Production config if in prod
     .AddEnvironmentVariables(); // Load environment variables for sensitive data
 
+// Fetch the connection string from environment variables or appsettings
+var connectionString = builder.Configuration["CONNECTION_STRING"] ??
+                       builder.Configuration.GetConnectionString("DefaultConnection") ??
+                       throw new InvalidOperationException("Connection string 'CONNECTION_STRING' or 'DefaultConnection' not found.");
+
+// Log the connection string to verify it is being loaded (for debugging purposes)
+Console.WriteLine($"Using connection string: {connectionString}");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(connectionString));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
 // Add services to the container
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -29,13 +41,6 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
 .AddIdentityCookies();
-
-// Fetch the connection string from configuration (appsettings or environment variables)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
-                       throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>()
