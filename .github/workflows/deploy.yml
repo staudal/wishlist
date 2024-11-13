@@ -4,47 +4,48 @@ on:
   push:
     branches:
       - main  # Deploy when changes are pushed to the main branch
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository code
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    # Step 2: Set up Docker Buildx for multi-platform support (optional)
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    # Step 3: Log in to Docker Hub
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    # Step 4: Build and push Docker image to Docker Hub
-    - name: Build and push Docker image
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/wishlist:latest .
-        docker push ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
-
-    # Step 5: SSH into Hetzner server and deploy the container
-    - name: Deploy to Hetzner
-      uses: appleboy/ssh-action@v0.1.4
-      with:
-        host: ${{ secrets.HETZNER_IP }}
-        username: ${{ secrets.HETZNER_USER }}
-        password: ${{ secrets.HETZNER_PASSWORD }}
-        port: 22
-        script: |
-          # Pull the latest image from Docker Hub
-          docker pull ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
-          
-          # Stop and remove the existing container (if running)
-          docker-compose -f /root/wishlist/docker-compose.yml down || true
-
-          # Start the container with the updated image
-          docker-compose -f /root/wishlist/docker-compose.yml up -d --force-recreate
+      # Step 1: Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      # Step 2: Set up Docker Buildx for multi-platform support (optional)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      # Step 3: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      # Step 4: Build and push Docker image to Docker Hub
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/wishlist:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
+      
+      # Step 5: SSH into Hetzner server and deploy the container
+      - name: Deploy to Hetzner
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.HETZNER_IP }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.HETZNER_PASSWORD }}
+          port: 22
+          script: |
+            # Pull the latest image from Docker Hub
+            docker pull ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
+            
+            # Stop and remove the existing container (if running)
+            docker-compose -f /root/wishlist/docker-compose.yml down || true
+            
+            # Start the container with the updated image
+            docker-compose -f /root/wishlist/docker-compose.yml up -d --force-recreate
