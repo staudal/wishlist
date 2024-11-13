@@ -3,8 +3,8 @@ name: Deploy to Hetzner
 on:
   push:
     branches:
-      - master  # Deploy when changes are pushed to the master branch
-  workflow_dispatch:  # Allows manual triggering from GitHub UI
+      - main  # Trigger the deployment when changes are pushed to the main branch
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   build_and_deploy:
@@ -32,7 +32,7 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/wishlist:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
       
-      # Step 5: SSH into Hetzner server and deploy the container
+      # Step 5: SSH into Hetzner, pull the image, and run the container with environment variables
       - name: Deploy to Hetzner
         uses: appleboy/ssh-action@v0.1.4
         with:
@@ -41,11 +41,15 @@ jobs:
           password: ${{ secrets.HETZNER_PASSWORD }}
           port: 22
           script: |
-            # Pull the latest image from Docker Hub
+            # Log in to Docker on the server (if not already logged in)
+            echo ${{ secrets.DOCKER_PASSWORD }} | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
+            
+            # Pull the latest image from Docker Hub (private repo)
             docker pull ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
             
-            # Stop and remove the existing container (if running)
-            docker-compose -f /root/wishlist/docker-compose.yml down || true
+            # Stop and remove any running container (if exists)
+            docker stop wishlist || true
+            docker rm wishlist || true
             
-            # Start the container with the updated image
-            docker-compose -f /root/wishlist/docker-compose.yml up -d --force-recreate
+            # Run the container with environment variables from GitHub secrets
+            docker run -d --name wishlist -e CONNECTION_STRING=${{ secrets.CONNECTION_STRING }} -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
