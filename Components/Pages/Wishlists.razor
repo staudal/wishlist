@@ -1,0 +1,14 @@
+﻿@page "/Wishlists"
+
+@using Microsoft.AspNetCore.Authorization
+@layout Wishlist.Components.Layout.AuthorizedLayout
+
+@attribute [Authorize]
+
+<PageTitle>Wishlists</PageTitle>
+
+<h1>Wishlists</h1>
+
+<AuthorizeView>
+    Hello @context.User.Identity?.Name! These are your wishlists.
+</AuthorizeView>
