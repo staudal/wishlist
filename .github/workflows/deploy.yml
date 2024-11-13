@@ -51,8 +51,11 @@ jobs:
             docker stop wishlist || true
             docker rm wishlist || true
             
+            # Ensure the environment variable does not contain special characters that could break the command
+            echo "CONNECTION_STRING=${{ secrets.CONNECTION_STRING }}"
+
             # Run the container with environment variables passed directly from GitHub Secrets
             docker run -d --name wishlist \
-              -e CONNECTION_STRING=${{ secrets.CONNECTION_STRING }} \
+              -e CONNECTION_STRING="${{ secrets.CONNECTION_STRING }}" \
               -p 8080:8080 \
               ${{ secrets.DOCKER_USERNAME }}/wishlist:latest
