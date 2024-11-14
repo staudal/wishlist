@@ -1,7 +1,10 @@
 ﻿@page "/Wishlists"
-
 @using Microsoft.AspNetCore.Authorization
-@layout Wishlist.Components.Layout.AuthorizedLayout
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Wishlist.Data
+@layout Layout.AuthorizedLayout
+@rendermode InteractiveServer
 
 @attribute [Authorize]
 
@@ -10,5 +13,132 @@
 <h1>Wishlists</h1>
 
 <AuthorizeView>
-    Hello @context.User.Identity?.Name! These are your wishlists.
+    <Authorized>
+        Hello @context.User.Identity?.Name! These are your wishlists.
+
+        <ul>
+            @foreach (var wishlist in _wishlists)
+            {
+                <li>
+                    @wishlist.Title
+                    <button @onclick="() => ConfirmRemoveWishlist(wishlist)">Remove</button>
+                    <ul>
+                        @foreach (var wish in wishlist.Wishes)
+                        {
+                            <li>@wish.Title - @FormatPrice(wish.Price, wish.Currency)</li>
+                        }
+                    </ul>
+
+                    @if (_wishlistToDelete == wishlist)
+                    {
+                        <div>
+                            <p>Are you sure you want to delete the wishlist?</p>
+                            <button @onclick="RemoveWishlistConfirmed">Yes</button>
+                            <button @onclick="CancelRemoveWishlist">No</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+
+        <input @bind="_newWishlistTitle" placeholder="New Wishlist Title" />
+        <button @onclick="CreateWishlist">Create Wishlist</button>
+    </Authorized>
+    <NotAuthorized>
+        <p>You are not authorized to view this page.</p>
+    </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private List<Wishlist> _wishlists = new();
+    private string _newWishlistTitle = string.Empty;
+    private Wishlist? _wishlistToDelete = null;
+
+    [Inject] private UserManager<ApplicationUser> UserManager { get; set; } = null!;
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+    [Inject] private ApplicationDbContext DbContext { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWishlistsAsync();
+    }
+
+    private async Task LoadWishlistsAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user != null)
+        {
+            _wishlists = await DbContext.Wishlists
+                .Include(wl => wl.Wishes)
+                .Where(wl => wl.UserId == user.Id)
+                .ToListAsync();
+        }
+    }
+
+    private async Task CreateWishlist()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (!string.IsNullOrEmpty(_newWishlistTitle) && user != null)
+        {
+            var wishlist = new Wishlist
+            {
+                Title = _newWishlistTitle,
+                UserId = user.Id
+            };
+            DbContext.Wishlists.Add(wishlist);
+            await DbContext.SaveChangesAsync();
+            _wishlists.Add(wishlist);
+            _newWishlistTitle = string.Empty; // Clear the wishlist title input
+            StateHasChanged();
+        }
+    }
+
+    private void ConfirmRemoveWishlist(Wishlist wishlist)
+    {
+        _wishlistToDelete = wishlist;
+    }
+
+    private async Task RemoveWishlistConfirmed()
+    {
+        if (_wishlistToDelete != null)
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user != null && _wishlistToDelete.UserId == user.Id)
+            {
+                // Remove the wishlist from wishes
+                var wishes = _wishlistToDelete.Wishes.ToList(); // Materialize the list
+                foreach (var wish in wishes)
+                {
+                    wish.Wishlists.Remove(_wishlistToDelete);
+                }
+
+                DbContext.Wishlists.Remove(_wishlistToDelete);
+                await DbContext.SaveChangesAsync();
+                _wishlists.Remove(_wishlistToDelete);
+                _wishlistToDelete = null;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void CancelRemoveWishlist()
+    {
+        _wishlistToDelete = null;
+    }
+
+    private string FormatPrice(decimal price, string currency)
+    {
+        var culture = currency switch
+        {
+            "DKK" => new System.Globalization.CultureInfo("da-DK"),
+            "EUR" => new System.Globalization.CultureInfo("de-DE"),
+            "USD" => new System.Globalization.CultureInfo("en-US"),
+            _ => System.Globalization.CultureInfo.InvariantCulture,
+        };
+
+        return string.Format(culture, "{0:C}", price);
+    }
+}

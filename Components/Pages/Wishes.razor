@@ -15,19 +15,68 @@
 <AuthorizeView>
     <Authorized>
         <ul>
-            @foreach (var wish in _wishes) {
+            @foreach (var wish in _wishes)
+            {
                 <li>
-                    @wish.Title - @FormatPrice(wish.Price, wish.Currency)
-                    @if (!string.IsNullOrEmpty(wish.ImageUrl)) {
-                        <img src="@wish.ImageUrl" alt="Wish Image" style="max-width: 100px; max-height: 100px;" />
-                    }
-                    <button @onclick="() => ConfirmRemoveWish(wish)">Remove</button>
-
-                    @if (_wishToDelete == wish) {
+                    @if (_wishToEdit == wish)
+                    {
                         <div>
-                            <p>Are you sure you want to delete this wish?</p>
-                            <button @onclick="RemoveWishConfirmed">Yes</button>
-                            <button @onclick="CancelRemoveWish">No</button>
+                            <input @bind="_wishToEditTitle" placeholder="Wish Title" />
+                            <input @bind="_wishToEditImageUrl" placeholder="Image URL (optional)" />
+                            <input @bind="_wishToEditPrice" placeholder="Price" type="number" step="0.01" />
+                            <select @bind="_wishToEditCurrency">
+                                <option value="DKK">DKK</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                            </select>
+                            <button @onclick="SaveWishEdit">Save</button>
+                            <button @onclick="CancelEditWish">Cancel</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            @wish.Title - @FormatPrice(wish.Price, wish.Currency)
+                            @if (!string.IsNullOrEmpty(wish.ImageUrl))
+                            {
+                                <img src="@wish.ImageUrl" alt="Wish Image" style="max-width: 100px; max-height: 100px;" />
+                            }
+
+                            <button @onclick="() => BeginEditWish(wish)">Edit</button>
+                            <button @onclick="() => ConfirmRemoveWish(wish)">Remove</button>
+
+                            @if (_wishToDelete == null)
+                            {
+                                <button @onclick="() => ShowAddToWishlistDialog(wish)">Add to Wishlist</button>
+                            }
+
+                            @if (_wishToDelete == wish)
+                            {
+                                <div>
+                                    <p>Are you sure you want to delete this wish?</p>
+                                    <button @onclick="RemoveWishConfirmed">Yes</button>
+                                    <button @onclick="CancelRemoveWish">No</button>
+                                </div>
+                            }
+
+                            <ul>
+                                @foreach (var wishlist in wish.Wishlists)
+                                {
+                                    <li>
+                                        @wishlist.Title
+                                        <button @onclick="() => ConfirmRemoveWishFromWishlist(wish, wishlist)">Remove from @wishlist.Title</button>
+
+                                        @if (_wishToRemoveFromWishlist == (wish, wishlist))
+                                        {
+                                            <div>
+                                                <p>Are you sure you want to remove this wish from the wishlist?</p>
+                                                <button @onclick="RemoveWishFromWishlistConfirmed">Yes</button>
+                                                <button @onclick="CancelRemoveWishFromWishlist">No</button>
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
                         </div>
                     }
                 </li>
@@ -42,6 +91,25 @@
             <option value="USD">USD</option>
         </select>
         <button @onclick="AddWish">Add Wish</button>
+
+        @if (_showAddToWishlistDialog)
+        {
+            <div>
+                <h2>Select a Wishlist to add the wish to:</h2>
+                <ul>
+                    @foreach (var wishlist in _wishlists)
+                    {
+                        @if (!_wishToAddToWishlist.Wishlists.Any(wl => wl.Id == wishlist.Id))
+                        {
+                            <li>
+                                <button @onclick="() => AddWishToWishlist(wishlist)">@wishlist.Title</button>
+                            </li>
+                        }
+                    }
+                </ul>
+                <button @onclick="CancelAddToWishlist">Cancel</button>
+            </div>
+        }
     </Authorized>
     <NotAuthorized>
         <p>You are not authorized to view this page.</p>
@@ -50,33 +118,67 @@
 
 @code {
     private List<Wish> _wishes = new();
+    private List<Wishlist> _wishlists = new();
     private string _newWishTitle = string.Empty;
     private string _newWishImageUrl = string.Empty;
     private decimal _newWishPrice; // New property for wish price.
     private string _newWishCurrency = "DKK"; // Default currency.
     private Wish? _wishToDelete = null; // Nullable Wish for confirmation
+    private Wish? _wishToAddToWishlist = null;
+    private bool _showAddToWishlistDialog = false;
+    private (Wish, Wishlist)? _wishToRemoveFromWishlist = null;
+    
+    // Edit logic
+    private Wish? _wishToEdit = null;
+    private string _wishToEditTitle = string.Empty;
+    private string _wishToEditImageUrl = string.Empty;
+    private decimal _wishToEditPrice; 
+    private string _wishToEditCurrency = "DKK";
 
     [Inject] private UserManager<ApplicationUser> UserManager { get; set; } = null!;
     [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
     [Inject] private ApplicationDbContext DbContext { get; set; } = null!;
 
-    protected override async Task OnInitializedAsync() {
+    protected override async Task OnInitializedAsync()
+    {
         await LoadWishesAsync();
+        await LoadWishlistsAsync();
     }
 
-    private async Task LoadWishesAsync() {
+    private async Task LoadWishesAsync()
+    {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
-        if (user != null) {
-            _wishes = await DbContext.Wishes.Where(w => w.UserId == user.Id).ToListAsync();
+        if (user != null)
+        {
+            _wishes = await DbContext.Wishes
+                .Include(w => w.Wishlists)
+                .Where(w => w.UserId == user.Id)
+                .ToListAsync();
         }
     }
 
-    private async Task AddWish() {
+    private async Task LoadWishlistsAsync()
+    {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
-        if (!string.IsNullOrEmpty(_newWishTitle) && user != null) {
-            var wish = new Wish {
+        if (user != null)
+        {
+            _wishlists = await DbContext.Wishlists
+                .Include(wl => wl.Wishes)
+                .Where(wl => wl.UserId == user.Id)
+                .ToListAsync();
+        }
+    }
+
+    private async Task AddWish()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (!string.IsNullOrEmpty(_newWishTitle) && user != null)
+        {
+            var wish = new Wish
+            {
                 Title = _newWishTitle,
                 ImageUrl = _newWishImageUrl,
                 Price = _newWishPrice,
@@ -93,16 +195,121 @@
             StateHasChanged();
         }
     }
-
-    private void ConfirmRemoveWish(Wish wish) {
-        _wishToDelete = wish;
+    
+    private void BeginEditWish(Wish wish)
+    {
+        _wishToEdit = wish;
+        _wishToEditTitle = wish.Title;
+        if (wish.ImageUrl != null) _wishToEditImageUrl = wish.ImageUrl;
+        _wishToEditPrice = wish.Price;
+        _wishToEditCurrency = wish.Currency;
     }
 
-    private async Task RemoveWishConfirmed() {
-        if (_wishToDelete != null) {
+    private void CancelEditWish()
+    {
+        _wishToEdit = null;
+        _wishToEditTitle = string.Empty;
+        _wishToEditImageUrl = string.Empty;
+        _wishToEditPrice = 0;
+        _wishToEditCurrency = "DKK";
+    }
+    
+    private async Task SaveWishEdit()
+    {
+        if (_wishToEdit != null)
+        {
+            var existingWish = await DbContext.Wishes
+                .FirstOrDefaultAsync(w => w.Id == _wishToEdit.Id);
+
+            if (existingWish != null)
+            {
+                existingWish.Title = _wishToEditTitle;
+                existingWish.ImageUrl = _wishToEditImageUrl;
+                existingWish.Price = _wishToEditPrice;
+                existingWish.Currency = _wishToEditCurrency;
+                await DbContext.SaveChangesAsync();
+                StateHasChanged();
+            }
+
+            _wishToEdit = null;
+            _wishToEditTitle = string.Empty;
+            _wishToEditImageUrl = string.Empty;
+            _wishToEditPrice = 0;
+            _wishToEditCurrency = "DKK";
+        }
+    }
+
+    private void ConfirmRemoveWish(Wish wish)
+    {
+        _wishToDelete = wish;
+    }
+    
+    private void ConfirmRemoveWishFromWishlist(Wish wish, Wishlist wishlist)
+    {
+        _wishToRemoveFromWishlist = (wish, wishlist);
+    }
+
+    private void ShowAddToWishlistDialog(Wish wish)
+    {
+        _wishToAddToWishlist = wish;
+        _showAddToWishlistDialog = true;
+        StateHasChanged();
+    }
+
+    private async Task AddWishToWishlist(Wishlist wishlist)
+    {
+        if (_wishToAddToWishlist != null)
+        {
+            var existingWish = await DbContext.Wishes
+                .Include(w => w.Wishlists)
+                .FirstOrDefaultAsync(w => w.Id == _wishToAddToWishlist.Id);
+
+            if (existingWish != null && existingWish.Wishlists.All(wl => wl.Id != wishlist.Id))
+            {
+                existingWish.Wishlists.Add(wishlist);
+                wishlist.Wishes.Add(existingWish);
+                await DbContext.SaveChangesAsync();
+                StateHasChanged();
+            }
+
+            _wishToAddToWishlist = null;
+            _showAddToWishlistDialog = false;
+        }
+    }
+    
+    private async Task RemoveWishFromWishlist(Wish wish, Wishlist wishlist)
+    {
+        var existingWish = await DbContext.Wishes
+            .Include(w => w.Wishlists)
+            .FirstOrDefaultAsync(w => w.Id == wish.Id);
+
+        if (existingWish != null)
+        {
+            existingWish.Wishlists.Remove(wishlist);
+            wishlist.Wishes.Remove(existingWish);
+            await DbContext.SaveChangesAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void CancelRemoveWish()
+    {
+        _wishToDelete = null;
+    }
+    
+    private void CancelRemoveWishFromWishlist()
+    {
+        _wishToRemoveFromWishlist = null;
+    }
+
+    private async Task RemoveWishConfirmed()
+    {
+        if (_wishToDelete != null)
+        {
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var user = await UserManager.GetUserAsync(authState.User);
-            if (user != null && _wishToDelete.UserId == user.Id) {
+            if (user != null && _wishToDelete.UserId == user.Id)
+            {
                 DbContext.Wishes.Remove(_wishToDelete);
                 await DbContext.SaveChangesAsync();
                 _wishes.Remove(_wishToDelete);
@@ -111,13 +318,33 @@
             }
         }
     }
+    
+    private async Task RemoveWishFromWishlistConfirmed()
+    {
+        if (_wishToRemoveFromWishlist.HasValue)
+        {
+            var (wish, wishlist) = _wishToRemoveFromWishlist.Value;
 
-    private void CancelRemoveWish() {
-        _wishToDelete = null;
+            var existingWish = await DbContext.Wishes
+                .Include(w => w.Wishlists)
+                .FirstOrDefaultAsync(w => w.Id == wish.Id);
+
+            if (existingWish != null)
+            {
+                existingWish.Wishlists.Remove(wishlist);
+                wishlist.Wishes.Remove(existingWish);
+                await DbContext.SaveChangesAsync();
+                StateHasChanged();
+            }
+
+            _wishToRemoveFromWishlist = null;
+        }
     }
 
-    private string FormatPrice(decimal price, string currency) {
-        var culture = currency switch {
+    private string FormatPrice(decimal price, string currency)
+    {
+        var culture = currency switch
+        {
             "DKK" => new System.Globalization.CultureInfo("da-DK"),
             "EUR" => new System.Globalization.CultureInfo("de-DE"),
             "USD" => new System.Globalization.CultureInfo("en-US"),
@@ -125,5 +352,11 @@
         };
 
         return string.Format(culture, "{0:C}", price);
+    }
+
+    private void CancelAddToWishlist()
+    {
+        _wishToAddToWishlist = null;
+        _showAddToWishlistDialog = false;
     }
 }

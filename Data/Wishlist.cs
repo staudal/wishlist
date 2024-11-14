@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Wishlist.Data
 {
-    public class Wish
+    public class Wishlist
     {
         [Key]
         public int Id { get; set; }
@@ -18,14 +18,6 @@ namespace Wishlist.Data
 
         public virtual ApplicationUser User { get; set; }
 
-        public string? ImageUrl { get; set; }
-
-        [DataType(DataType.Currency)]
-        public decimal Price { get; set; }
-
-        [Required]
-        public string Currency { get; set; }
-
-        public virtual ICollection<Wishlist> Wishlists { get; set; } = new List<Wishlist>();
+        public virtual ICollection<Wish> Wishes { get; set; } = new List<Wish>();
     }
 }
