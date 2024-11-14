@@ -1,7 +1,10 @@
 @page "/Wishes"
-
 @using Microsoft.AspNetCore.Authorization
-@layout Wishlist.Components.Layout.AuthorizedLayout
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Wishlist.Data
+@layout Layout.AuthorizedLayout
+@rendermode InteractiveServer
 
 @attribute [Authorize]
 
@@ -10,5 +13,64 @@
 <h1>Wishes</h1>
 
 <AuthorizeView>
-    Hello @context.User.Identity?.Name! These are your wishes.
+    <Authorized>
+        <ul>
+            @foreach (var wish in _wishes) {
+                <li>
+                    @wish.Title
+                    <button @onclick="() => RemoveWish(wish)">Remove</button>
+                </li>
+            }
+        </ul>
+        <input @bind="_newWishTitle" placeholder="New Wish" />
+        <button @onclick="AddWish">Add Wish</button>
+    </Authorized>
+    <NotAuthorized>
+        <p>You are not authorized to view this page.</p>
+    </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private List<Wish> _wishes = new();
+    private string _newWishTitle = string.Empty;
+
+    [Inject] private UserManager<ApplicationUser> UserManager { get; set; } = null!;
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+    [Inject] private ApplicationDbContext DbContext { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync() {
+        await LoadWishesAsync();
+    }
+
+    private async Task LoadWishesAsync() {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user != null) {
+            _wishes = await DbContext.Wishes.Where(w => w.UserId == user.Id).ToListAsync();
+        }
+    }
+
+    private async Task AddWish() {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (!string.IsNullOrEmpty(_newWishTitle) && user != null) {
+            var wish = new Wish { Title = _newWishTitle, UserId = user.Id };
+            DbContext.Wishes.Add(wish);
+            await DbContext.SaveChangesAsync();
+            _wishes.Add(wish);
+            _newWishTitle = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveWish(Wish wish) {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user != null && wish.UserId == user.Id) {
+            DbContext.Wishes.Remove(wish);
+            await DbContext.SaveChangesAsync();
+            _wishes.Remove(wish);
+            StateHasChanged();
+        }
+    }
+}
