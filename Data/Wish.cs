@@ -16,5 +16,16 @@ namespace Wishlist.Data
         public string UserId { get; set; }
         
         public virtual ApplicationUser User { get; set; }
+
+        // New property for Image URL
+        public string? ImageUrl { get; set; }
+
+        // New property for Price
+        [DataType(DataType.Currency)]
+        public decimal Price { get; set; }
+
+        // New property for Currency
+        [Required]
+        public string Currency { get; set; }
     }
 }

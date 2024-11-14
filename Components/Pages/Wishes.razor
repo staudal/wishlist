@@ -17,12 +17,30 @@
         <ul>
             @foreach (var wish in _wishes) {
                 <li>
-                    @wish.Title
-                    <button @onclick="() => RemoveWish(wish)">Remove</button>
+                    @wish.Title - @FormatPrice(wish.Price, wish.Currency)
+                    @if (!string.IsNullOrEmpty(wish.ImageUrl)) {
+                        <img src="@wish.ImageUrl" alt="Wish Image" style="max-width: 100px; max-height: 100px;" />
+                    }
+                    <button @onclick="() => ConfirmRemoveWish(wish)">Remove</button>
+
+                    @if (_wishToDelete == wish) {
+                        <div>
+                            <p>Are you sure you want to delete this wish?</p>
+                            <button @onclick="RemoveWishConfirmed">Yes</button>
+                            <button @onclick="CancelRemoveWish">No</button>
+                        </div>
+                    }
                 </li>
             }
         </ul>
         <input @bind="_newWishTitle" placeholder="New Wish" />
+        <input @bind="_newWishImageUrl" placeholder="Image URL (optional)" />
+        <input @bind="_newWishPrice" placeholder="Price" type="number" step="0.01" />
+        <select @bind="_newWishCurrency">
+            <option value="DKK">DKK</option>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+        </select>
         <button @onclick="AddWish">Add Wish</button>
     </Authorized>
     <NotAuthorized>
@@ -33,6 +51,10 @@
 @code {
     private List<Wish> _wishes = new();
     private string _newWishTitle = string.Empty;
+    private string _newWishImageUrl = string.Empty;
+    private decimal _newWishPrice; // New property for wish price.
+    private string _newWishCurrency = "DKK"; // Default currency.
+    private Wish? _wishToDelete = null; // Nullable Wish for confirmation
 
     [Inject] private UserManager<ApplicationUser> UserManager { get; set; } = null!;
     [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
@@ -54,23 +76,54 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
         if (!string.IsNullOrEmpty(_newWishTitle) && user != null) {
-            var wish = new Wish { Title = _newWishTitle, UserId = user.Id };
+            var wish = new Wish {
+                Title = _newWishTitle,
+                ImageUrl = _newWishImageUrl,
+                Price = _newWishPrice,
+                Currency = _newWishCurrency,
+                UserId = user.Id
+            };
             DbContext.Wishes.Add(wish);
             await DbContext.SaveChangesAsync();
             _wishes.Add(wish);
             _newWishTitle = string.Empty;
+            _newWishImageUrl = string.Empty; // Clear the image URL input.
+            _newWishPrice = 0; // Clear the price input.
+            _newWishCurrency = "DKK"; // Reset the currency to default.
             StateHasChanged();
         }
     }
 
-    private async Task RemoveWish(Wish wish) {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
-        if (user != null && wish.UserId == user.Id) {
-            DbContext.Wishes.Remove(wish);
-            await DbContext.SaveChangesAsync();
-            _wishes.Remove(wish);
-            StateHasChanged();
+    private void ConfirmRemoveWish(Wish wish) {
+        _wishToDelete = wish;
+    }
+
+    private async Task RemoveWishConfirmed() {
+        if (_wishToDelete != null) {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user != null && _wishToDelete.UserId == user.Id) {
+                DbContext.Wishes.Remove(_wishToDelete);
+                await DbContext.SaveChangesAsync();
+                _wishes.Remove(_wishToDelete);
+                _wishToDelete = null;
+                StateHasChanged();
+            }
         }
+    }
+
+    private void CancelRemoveWish() {
+        _wishToDelete = null;
+    }
+
+    private string FormatPrice(decimal price, string currency) {
+        var culture = currency switch {
+            "DKK" => new System.Globalization.CultureInfo("da-DK"),
+            "EUR" => new System.Globalization.CultureInfo("de-DE"),
+            "USD" => new System.Globalization.CultureInfo("en-US"),
+            _ => System.Globalization.CultureInfo.InvariantCulture,
+        };
+
+        return string.Format(culture, "{0:C}", price);
     }
 }
