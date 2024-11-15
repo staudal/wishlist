@@ -1,12 +1,36 @@
-﻿@inherits LayoutComponentBase
+﻿@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@inherits LayoutComponentBase
 
 <div>
     <nav class="navbar bg-light">
-        <div class="container">
+        <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand" href="#">Navbar</a>
+            <div>
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="d-flex align-items-center">
+                            <span>@context.User.Identity?.Name</span>
+                            <form method="post" action="Account/Logout" style="margin: 0; padding: 0;">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="returnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />
+                                <button type="submit" class="btn btn-secondary ms-2">Logout</button>
+                            </form>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="d-flex">
+                            <NavLink class="nav-link" href="Account/Login" style="margin: 0; padding: 0;">
+                                <button class="btn btn-primary">Login</button>
+                            </NavLink>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
     </nav>
     <main class="container my-4 d-flex gap-4 flex-column">
-    @Body
+        @Body
     </main>
 </div>
