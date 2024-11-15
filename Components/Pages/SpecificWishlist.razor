@@ -229,6 +229,10 @@ else
                         <label for="shareLinkName">Name</label>
                         <input id="shareLinkName" @bind="_shareLinkName" placeholder="Link Name" class="form-control" />
                     </div>
+                    <div class="mb-2">
+                        <label for="shareLinkExpiryDate">Expiry Date</label>
+                        <input id="shareLinkExpiryDate" type="date" @bind="_shareLinkExpiryDate" class="form-control" />
+                    </div>
                     <button class="btn btn-primary" @onclick="GenerateShareLink">Generate Share Link</button>
 
                     <!-- Display Existing Share Links -->
@@ -238,7 +242,17 @@ else
                         {
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>@link.Name:</strong> <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")">@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")</a>
+                                    <strong>@link.Name:</strong>
+                                    <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")">@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")</a>
+                                    <br />
+                                    @if (link.ExpiryDate < DateTime.UtcNow)
+                                    {
+                                        <span>Expired on: @link.ExpiryDate.ToString("yyyy-MM-dd")</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Expires on: @link.ExpiryDate.ToString("yyyy-MM-dd")</span>
+                                    }
                                 </div>
                                 <button @onclick="() => ConfirmDeleteShareLink(link.Id)" class="btn btn-sm btn-danger">Delete</button>
                             </li>
@@ -285,13 +299,14 @@ else
     private bool _isCreateWishModalVisible = false;
     private bool _isEditWishModalVisible = false;
     private bool _isDeleteWishModalVisible = false;
-    private bool _isShareModalVisible = false;  // New addition
-    private string _shareLink = string.Empty;  // New addition
+    private bool _isShareModalVisible = false;
+    private string _shareLink = string.Empty;
     private string _baseUri = string.Empty;
-    private string _shareLinkName = string.Empty; // New addition
-    private List<ShareLink> _shareLinks = new(); // New addition
+    private string _shareLinkName = string.Empty;
+    private List<ShareLink> _shareLinks = new();
     private bool _isDeleteShareLinkModalVisible = false;
     private int _shareLinkToDeleteId;
+    private DateTime? _shareLinkExpiryDate = DateTime.UtcNow.AddDays(30);
 
     private string _newWishTitle = string.Empty;
     private string _newWishPriceString = "0"; 
@@ -318,9 +333,9 @@ else
     {
         _baseUri = NavigationManager.BaseUri.TrimEnd('/');
         await LoadWishlist();
-        await LoadShareLinks(); // Load existing share links
+        await LoadShareLinks();
     }
-    
+
     private async Task LoadShareLinks()
     {
         if (_wishlist != null)
@@ -530,30 +545,31 @@ else
     private void CancelShareWishlist()
     {
         _isShareModalVisible = false;
-        _shareLinkName = string.Empty;  // Reset name field
-        _shareLink = string.Empty; // Reset generated link
+        _shareLinkName = string.Empty;
+        _shareLink = string.Empty;
+        _shareLinkExpiryDate = DateTime.UtcNow.AddDays(30); // Reset expiry date to 30 days from now
     }
 
     private async Task GenerateShareLink()
     {
-        if (_wishlist != null && !string.IsNullOrEmpty(_shareLinkName))
+        if (_wishlist != null && !string.IsNullOrEmpty(_shareLinkName) && _shareLinkExpiryDate.HasValue)
         {
             var token = Guid.NewGuid().ToString();
             var shareLink = new ShareLink
             {
                 Token = token,
                 WishlistId = _wishlist.Id,
-                ExpiryDate = DateTime.UtcNow.AddDays(30),  // Example expiry date
+                ExpiryDate = DateTime.SpecifyKind(_shareLinkExpiryDate.Value, DateTimeKind.Utc), // Ensure DateTime is in UTC
                 Name = _shareLinkName
             };
 
-            DbContext.ShareLinks.Add(shareLink);  // Ensure ShareLink is a valid DbSet in DbContext
+            DbContext.ShareLinks.Add(shareLink);
             await DbContext.SaveChangesAsync();
 
             _shareLink = _baseUri + $"/SpecificSharedWishlist/{shareLink.Token}";
-            _shareLinkName = string.Empty;  // Reset name field
+            _shareLinkName = string.Empty;
 
-            await LoadShareLinks(); // Reload the share links list
+            await LoadShareLinks();
         }
     }
 
