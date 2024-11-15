@@ -27,5 +27,7 @@ namespace Wishlist.Data
         // Computed property (not stored in database)
         [NotMapped]
         public int ItemsCount => Wishes.Count; // This line calculates the number of items
+        
+        public bool IsShared { get; set; }
     }
 }

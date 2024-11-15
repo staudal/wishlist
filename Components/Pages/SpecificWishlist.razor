@@ -6,6 +6,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 
 @attribute [Authorize]
@@ -15,6 +16,7 @@
 <div class="d-flex justify-content-between align-items-center">
     <h1>@_wishlist?.Title</h1>
     <button @onclick="ShowCreateWishModal" class="btn btn-success">Create Wish</button>
+    <button @onclick="ShowShareWishlistModal" class="btn btn-info ms-2">Share Wishlist</button>
 </div>
 
 @if (!_isDataLoaded)
@@ -213,6 +215,45 @@ else
     <div class="modal-backdrop fade show"></div>
 }
 
+@if (_isShareModalVisible)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Share Wishlist</h5>
+                    <button type="button" class="btn-close" @onclick="CancelShareWishlist"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label for="shareLinkName">Name</label>
+                        <input id="shareLinkName" @bind="_shareLinkName" placeholder="Link Name" class="form-control" />
+                    </div>
+                    <button class="btn btn-primary" @onclick="GenerateShareLink">Generate Share Link</button>
+
+                    <!-- Display Existing Share Links -->
+                    <h3>Existing Share Links</h3>
+                    <ul class="list-group mt-3">
+                        @foreach (var link in _shareLinks)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>@link.Name:</strong> <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")">@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")</a>
+                                </div>
+                                <button @onclick="() => DeleteShareLink(link.Id)" class="btn btn-sm btn-danger">Delete</button>
+                            </li>
+                        }
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelShareWishlist">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     [Parameter] public int Id { get; set; }
     private Wishlist? _wishlist = null;
@@ -220,6 +261,11 @@ else
     private bool _isCreateWishModalVisible = false;
     private bool _isEditWishModalVisible = false;
     private bool _isDeleteWishModalVisible = false;
+    private bool _isShareModalVisible = false;  // New addition
+    private string _shareLink = string.Empty;  // New addition
+    private string _baseUri = string.Empty;
+    private string _shareLinkName = string.Empty; // New addition
+    private List<ShareLink> _shareLinks = new(); // New addition
 
     private string _newWishTitle = string.Empty;
     private string _newWishPriceString = "0"; 
@@ -244,7 +290,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        _baseUri = NavigationManager.BaseUri.TrimEnd('/');
         await LoadWishlist();
+        await LoadShareLinks(); // Load existing share links
+    }
+    
+    private async Task LoadShareLinks()
+    {
+        if (_wishlist != null)
+        {
+            _shareLinks = await DbContext.ShareLinks.Where(sl => sl.WishlistId == _wishlist.Id).ToListAsync();
+        }
     }
 
     private async Task LoadWishlist()
@@ -417,5 +473,52 @@ else
         result = decimal.Round(result, 2);
         
         return isValid;
+    }
+    
+    private void ShowShareWishlistModal()
+    {
+        _isShareModalVisible = true;
+    }
+
+    private void CancelShareWishlist()
+    {
+        _isShareModalVisible = false;
+        _shareLinkName = string.Empty;  // Reset name field
+        _shareLink = string.Empty; // Reset generated link
+    }
+
+    private async Task GenerateShareLink()
+    {
+        if (_wishlist != null && !string.IsNullOrEmpty(_shareLinkName))
+        {
+            var token = Guid.NewGuid().ToString();
+            var shareLink = new ShareLink
+            {
+                Token = token,
+                WishlistId = _wishlist.Id,
+                ExpiryDate = DateTime.UtcNow.AddDays(30),  // Example expiry date
+                Name = _shareLinkName
+            };
+
+            DbContext.ShareLinks.Add(shareLink);  // Ensure ShareLink is a valid DbSet in DbContext
+            await DbContext.SaveChangesAsync();
+
+            _shareLink = _baseUri + $"/SpecificSharedWishlist/{shareLink.Token}";
+            _shareLinkName = string.Empty;  // Reset name field
+
+            await LoadShareLinks(); // Reload the share links list
+        }
+    }
+
+    private async Task DeleteShareLink(int linkId)
+    {
+        var link = await DbContext.ShareLinks.FindAsync(linkId);
+        if (link != null)
+        {
+            DbContext.ShareLinks.Remove(link);
+            await DbContext.SaveChangesAsync();
+
+            await LoadShareLinks(); // Reload the share links list
+        }
     }
 }
