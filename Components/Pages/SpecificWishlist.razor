@@ -29,6 +29,8 @@ else
         <tr>
             <th class="align-middle">Title</th>
             <th class="align-middle">Price</th>
+            <th class="align-middle">Amount</th>
+            <th class="align-middle">Description</th>
             <th class="align-middle">Image</th>
             <th class="text-end align-middle">Actions</th>
         </tr>
@@ -39,6 +41,8 @@ else
             <tr>
                 <td class="align-middle">@wish.Title</td>
                 <td class="align-middle">@FormatPrice(wish.Price, wish.Currency)</td>
+                <td class="align-middle">@wish.Amount</td> <!-- Added Amount column -->
+                <td class="align-middle">@wish.Description</td> <!-- Added Description column -->
                 <td class="align-middle">
                     @if (!string.IsNullOrWhiteSpace(wish.ImageUrl))
                     {
@@ -76,6 +80,16 @@ else
                     </div>
 
                     <div class="mb-2">
+                        <label for="newWishAmount">Amount</label>
+                        <input id="newWishAmount" @bind="_newWishAmount" type="number" min="1" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="newWishDescription">Description</label>
+                        <textarea id="newWishDescription" @bind="_newWishDescription" placeholder="Description" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
                         <label for="newWishImageUrl">Image URL</label>
                         <input id="newWishImageUrl" @bind="_newWishImageUrl" placeholder="Image URL" class="form-control" />
                     </div>
@@ -83,7 +97,7 @@ else
                     <div class="row">
                         <div class="col-md-8 mb-2">
                             <label for="newWishPrice">Price</label>
-                            <input id="newWishPrice" @bind-value="_newWishPriceString" placeholder="Price" class="form-control" type="text" />
+                            <input id="newWishPrice" @bind="_newWishPriceString" placeholder="Price" class="form-control" type="text" />
                         </div>
                         <div class="col-md-4 mb-2">
                             <label for="newWishCurrency">Currency</label>
@@ -125,6 +139,16 @@ else
                     </div>
 
                     <div class="mb-2">
+                        <label for="editWishAmount">Amount</label>
+                        <input id="editWishAmount" @bind="_editWishAmount" type="number" min="1" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="editWishDescription">Description</label>
+                        <textarea id="editWishDescription" @bind="_editWishDescription" placeholder="Description" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
                         <label for="editWishImageUrl">Image URL</label>
                         <input id="editWishImageUrl" @bind="_editWishImageUrl" placeholder="Image URL" class="form-control" />
                     </div>
@@ -132,7 +156,7 @@ else
                     <div class="row">
                         <div class="col-md-8 mb-2">
                             <label for="editWishPrice">Price</label>
-                            <input id="editWishPrice" @bind-value="_editWishPriceString" placeholder="Price" class="form-control" type="text" />
+                            <input id="editWishPrice" @bind="_editWishPriceString" placeholder="Price" class="form-control" type="text" />
                         </div>
                         <div class="col-md-4 mb-2">
                             <label for="editWishCurrency">Currency</label>
@@ -195,6 +219,8 @@ else
     private decimal _newWishPrice = 0; 
     private string _newWishCurrency = "DKK";
     private string _newWishImageUrl = string.Empty;
+    private int _newWishAmount = 1;
+    private string _newWishDescription = string.Empty;
 
     private Wish? _wishToEdit = null;
     private string _editWishTitle = string.Empty;
@@ -202,6 +228,8 @@ else
     private decimal _editWishPrice = 0; 
     private string _editWishCurrency = "DKK";
     private string _editWishImageUrl = string.Empty;
+    private int _editWishAmount = 1;
+    private string _editWishDescription = string.Empty;
     
     private Wish? _wishToDelete = null;
 
@@ -258,6 +286,7 @@ else
     private async Task CreateWish()
     {
         _newWishTitle = _newWishTitle.Trim();
+        _newWishDescription = _newWishDescription.Trim();  // Trim the description
 
         if (_wishlist != null && !string.IsNullOrWhiteSpace(_newWishTitle) && TryParsePrice(_newWishPriceString, out _newWishPrice))
         {
@@ -268,7 +297,9 @@ else
                 Currency = _newWishCurrency,
                 ImageUrl = _newWishImageUrl,
                 UserId = _wishlist.UserId,
-                Wishlists = new List<Wishlist> { _wishlist }
+                Wishlists = new List<Wishlist> { _wishlist },
+                Amount = _newWishAmount,
+                Description = _newWishDescription
             };
 
             DbContext.Wishes.Add(newWish);
@@ -278,6 +309,8 @@ else
             _newWishPriceString = "0";
             _newWishImageUrl = string.Empty;
             _newWishCurrency = "DKK";
+            _newWishAmount = 1;
+            _newWishDescription = string.Empty;
             _isCreateWishModalVisible = false;
 
             await LoadWishlist();
@@ -291,6 +324,8 @@ else
         _editWishPriceString = wish.Price.ToString("0.##");
         _editWishCurrency = wish.Currency;
         _editWishImageUrl = wish.ImageUrl;
+        _editWishAmount = wish.Amount;
+        _editWishDescription = wish.Description;
         _isEditWishModalVisible = true;
     }
 
@@ -309,6 +344,7 @@ else
         if (_wishToEdit != null)
         {
             _editWishTitle = _editWishTitle.Trim();
+            _editWishDescription = _editWishDescription.Trim();  // Trim the description
 
             if (!string.IsNullOrWhiteSpace(_editWishTitle) && TryParsePrice(_editWishPriceString, out _editWishPrice))
             {
@@ -320,6 +356,8 @@ else
                     existingWish.Price = _editWishPrice;
                     existingWish.Currency = _editWishCurrency;
                     existingWish.ImageUrl = _editWishImageUrl;
+                    existingWish.Amount = _editWishAmount;
+                    existingWish.Description = _editWishDescription;
                     await DbContext.SaveChangesAsync();
 
                     _wishToEdit = null;
@@ -327,6 +365,8 @@ else
                     _editWishPriceString = "0";
                     _editWishCurrency = "DKK";
                     _editWishImageUrl = string.Empty;
+                    _editWishAmount = 1;
+                    _editWishDescription = string.Empty;
                     _isEditWishModalVisible = false;
 
                     StateHasChanged();

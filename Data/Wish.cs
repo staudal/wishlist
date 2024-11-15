@@ -6,11 +6,9 @@ namespace Wishlist.Data
 {
     public class Wish
     {
-        [Key]
-        public int Id { get; set; }
+        [Key] public int Id { get; set; }
 
-        [Required]
-        public string Title { get; set; }
+        [Required] public string Title { get; set; }
 
         [Required]
         [ForeignKey("ApplicationUser")]
@@ -20,12 +18,14 @@ namespace Wishlist.Data
 
         public string? ImageUrl { get; set; }
 
-        [DataType(DataType.Currency)]
-        public decimal Price { get; set; }
+        [DataType(DataType.Currency)] public decimal Price { get; set; }
 
-        [Required]
-        public string Currency { get; set; }
+        [Required] public string Currency { get; set; }
 
         public virtual ICollection<Wishlist> Wishlists { get; set; } = new List<Wishlist>();
+
+        [Required] public int Amount { get; set; } = 1;
+
+        public string? Description { get; set; }
     }
 }
