@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 @attribute [Authorize]
@@ -244,7 +245,9 @@ else
                     </div>
 
                     <!-- Display Existing Share Links -->
-                    <div>
+                    @if (_shareLinks.Any())
+                    {
+                        <div>
                         <h3>Existing shared links</h3>
                         <ul class="list-group mt-3">
                             @foreach (var link in _shareLinks)
@@ -266,6 +269,9 @@ else
                                         <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")" target="_blank" class="btn btn-sm btn-primary">
                                             <i class="fas fa-eye me-1"></i> Go to link
                                         </a>
+                                        <button id="copyButton_@link.Id" @onclick="@(async () => await CopyToClipboard($"{_baseUri}/SpecificSharedWishlist/{link.Token}", $"copyButton_{link.Id}"))" class="btn btn-sm btn-secondary">
+                                            <i class="fas fa-clipboard me-1"></i> Copy
+                                        </button>
                                         <button @onclick="() => ConfirmDeleteShareLink(link.Id)" class="btn btn-sm btn-danger">
                                             <i class="fas fa-trash-alt me-1"></i> Delete
                                         </button>
@@ -274,6 +280,7 @@ else
                             }
                         </ul>
                     </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelShareWishlist">
@@ -346,6 +353,11 @@ else
     private string _editWishLinkUrl = string.Empty;
     
     private Wish? _wishToDelete = null;
+    
+    private async Task CopyToClipboard(string text, string buttonId)
+    {
+        await JS.InvokeVoidAsync("copyToClipboard", text, buttonId);
+    }
 
     protected override async Task OnInitializedAsync()
     {
