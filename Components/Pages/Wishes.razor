@@ -14,77 +14,81 @@
 
 <AuthorizeView>
     <Authorized>
-        <ul>
-            @foreach (var wish in _wishes)
-            {
-                <li>
-                    @if (_wishToEdit == wish)
-                    {
-                        <div>
-                            <input @bind="_wishToEditTitle" placeholder="Wish Title" />
-                            <input @bind="_wishToEditImageUrl" placeholder="Image URL (optional)" />
-                            <input @bind="_wishToEditPrice" placeholder="Price" type="number" step="0.01" />
-                            <select @bind="_wishToEditCurrency">
-                                <option value="DKK">DKK</option>
-                                <option value="EUR">EUR</option>
-                                <option value="USD">USD</option>
-                            </select>
-                            <button @onclick="SaveWishEdit">Save</button>
-                            <button @onclick="CancelEditWish">Cancel</button>
-                        </div>
-                    }
-                    else
-                    {
-                        <div>
-                            @wish.Title - @FormatPrice(wish.Price, wish.Currency)
-                            @if (!string.IsNullOrEmpty(wish.ImageUrl))
-                            {
-                                <img src="@wish.ImageUrl" alt="Wish Image" style="max-width: 100px; max-height: 100px;" />
-                            }
-
-                            <button @onclick="() => BeginEditWish(wish)">Edit</button>
-                            <button @onclick="() => ConfirmRemoveWish(wish)">Remove</button>
-
-                            @if (_wishToDelete == null)
-                            {
-                                <button @onclick="() => ShowAddToWishlistDialog(wish)">Add to Wishlist</button>
-                            }
-
-                            @if (_wishToDelete == wish)
-                            {
-                                <div>
-                                    <p>Are you sure you want to delete this wish?</p>
-                                    <button @onclick="RemoveWishConfirmed">Yes</button>
-                                    <button @onclick="CancelRemoveWish">No</button>
-                                </div>
-                            }
-
-                            <ul>
-                                @foreach (var wishlist in wish.Wishlists)
+        @if (!_isDataLoaded) {
+            <p>Loading...</p>
+        } else {
+            <ul>
+                @foreach (var wish in _wishes)
+                {
+                    <li>
+                        @if (_wishToEdit == wish)
+                        {
+                            <div>
+                                <input @bind="_wishToEditTitle" placeholder="Wish Title"/>
+                                <input @bind="_wishToEditImageUrl" placeholder="Image URL (optional)"/>
+                                <input @bind="_wishToEditPrice" placeholder="Price" type="number" step="0.01"/>
+                                <select @bind="_wishToEditCurrency">
+                                    <option value="DKK">DKK</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                                <button @onclick="SaveWishEdit">Save</button>
+                                <button @onclick="CancelEditWish">Cancel</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div>
+                                @wish.Title - @FormatPrice(wish.Price, wish.Currency)
+                                @if (!string.IsNullOrEmpty(wish.ImageUrl))
                                 {
-                                    <li>
-                                        @wishlist.Title
-                                        <button @onclick="() => ConfirmRemoveWishFromWishlist(wish, wishlist)">Remove from @wishlist.Title</button>
-
-                                        @if (_wishToRemoveFromWishlist == (wish, wishlist))
-                                        {
-                                            <div>
-                                                <p>Are you sure you want to remove this wish from the wishlist?</p>
-                                                <button @onclick="RemoveWishFromWishlistConfirmed">Yes</button>
-                                                <button @onclick="CancelRemoveWishFromWishlist">No</button>
-                                            </div>
-                                        }
-                                    </li>
+                                    <img src="@wish.ImageUrl" alt="Wish Image" style="max-width: 100px; max-height: 100px;"/>
                                 }
-                            </ul>
-                        </div>
-                    }
-                </li>
-            }
-        </ul>
-        <input @bind="_newWishTitle" placeholder="New Wish" />
-        <input @bind="_newWishImageUrl" placeholder="Image URL (optional)" />
-        <input @bind="_newWishPrice" placeholder="Price" type="number" step="0.01" />
+
+                                <button @onclick="() => BeginEditWish(wish)">Edit</button>
+                                <button @onclick="() => ConfirmRemoveWish(wish)">Remove</button>
+
+                                @if (_wishToDelete == null)
+                                {
+                                    <button @onclick="() => ShowAddToWishlistDialog(wish)">Add to Wishlist</button>
+                                }
+
+                                @if (_wishToDelete == wish)
+                                {
+                                    <div>
+                                        <p>Are you sure you want to delete this wish?</p>
+                                        <button @onclick="RemoveWishConfirmed">Yes</button>
+                                        <button @onclick="CancelRemoveWish">No</button>
+                                    </div>
+                                }
+
+                                <ul>
+                                    @foreach (var wishlist in wish.Wishlists)
+                                    {
+                                        <li>
+                                            @wishlist.Title
+                                            <button @onclick="() => ConfirmRemoveWishFromWishlist(wish, wishlist)">Remove from @wishlist.Title</button>
+
+                                            @if (_wishToRemoveFromWishlist == (wish, wishlist))
+                                            {
+                                                <div>
+                                                    <p>Are you sure you want to remove this wish from the wishlist?</p>
+                                                    <button @onclick="RemoveWishFromWishlistConfirmed">Yes</button>
+                                                    <button @onclick="CancelRemoveWishFromWishlist">No</button>
+                                                </div>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <input @bind="_newWishTitle" placeholder="New Wish"/>
+        <input @bind="_newWishImageUrl" placeholder="Image URL (optional)"/>
+        <input @bind="_newWishPrice" placeholder="Price" type="number" step="0.01"/>
         <select @bind="_newWishCurrency">
             <option value="DKK">DKK</option>
             <option value="EUR">EUR</option>
@@ -117,6 +121,7 @@
 </AuthorizeView>
 
 @code {
+    private bool _isDataLoaded = false;
     private List<Wish> _wishes = new();
     private List<Wishlist> _wishlists = new();
     private string _newWishTitle = string.Empty;
@@ -143,6 +148,7 @@
     {
         await LoadWishesAsync();
         await LoadWishlistsAsync();
+        _isDataLoaded = true;
     }
 
     private async Task LoadWishesAsync()

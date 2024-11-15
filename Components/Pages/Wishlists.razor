@@ -10,57 +10,146 @@
 
 <PageTitle>Wishlists</PageTitle>
 
-<h1>Wishlists</h1>
+<div class="d-flex justify-content-between align-items-center">
+    <h1>Wishlists</h1>
+    <button @onclick="() => ShowCreateWishlistModal()" class="btn btn-success">Create Wishlist</button>
+</div>
 
 <AuthorizeView>
     <Authorized>
-        Hello @context.User.Identity?.Name! These are your wishlists.
-
-        <ul>
-            @foreach (var wishlist in _wishlists)
-            {
-                <li>
-                    @wishlist.Title
-                    <button @onclick="() => ConfirmRemoveWishlist(wishlist)">Remove</button>
-                    <ul>
-                        @foreach (var wish in wishlist.Wishes)
-                        {
-                            <li>@wish.Title - @FormatPrice(wish.Price, wish.Currency)</li>
-                        }
-                    </ul>
-
-                    @if (_wishlistToDelete == wishlist)
+        @if (!_isDataLoaded)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Created On</th>    
+                        <th>Last Updated</th>
+                        <th>Items</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var wishlist in _wishlists)
                     {
-                        <div>
-                            <p>Are you sure you want to delete the wishlist?</p>
-                            <button @onclick="RemoveWishlistConfirmed">Yes</button>
-                            <button @onclick="CancelRemoveWishlist">No</button>
-                        </div>
+                        <tr>
+                            <td class="align-middle">@wishlist.Title</td>
+                            <td class="align-middle">@wishlist.CreationDate.ToString("yyyy-MM-dd")</td>
+                            <td class="align-middle">@wishlist.LastUpdated.ToString("yyyy-MM-dd")</td>
+                            <td class="align-middle">@wishlist.ItemsCount</td>
+                            <td class="align-middle text-end">
+                                <button @onclick="() => BeginEditWishlist(wishlist)" class="btn btn-sm btn-primary">Edit</button>
+                                <button @onclick="() => ConfirmRemoveWishlist(wishlist)" class="btn btn-sm btn-danger">Remove</button>
+                                <button @onclick="() => ShowWishlist(wishlist.Id)" class="btn btn-sm btn-info">Show</button>
+                            </td>
+                        </tr>
                     }
-                </li>
-            }
-        </ul>
-
-        <input @bind="_newWishlistTitle" placeholder="New Wishlist Title" />
-        <button @onclick="CreateWishlist">Create Wishlist</button>
+                </tbody>
+            </table>
+        }
     </Authorized>
     <NotAuthorized>
         <p>You are not authorized to view this page.</p>
     </NotAuthorized>
 </AuthorizeView>
 
+@if (_isDeleteModalVisible)
+{
+    <!-- Bootstrap Modal for Delete Confirmation -->
+    <div class="modal fade show" id="staticBackdrop" style="display: block;" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-modal="true" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="staticBackdropLabel">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CancelRemoveWishlist"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the wishlist «@(_wishlistToDelete?.Title)»?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelRemoveWishlist">Close</button>
+                    <button type="button" class="btn btn-danger" @onclick="RemoveWishlistConfirmed">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (_isEditModalVisible)
+{
+    <!-- Bootstrap Modal for Edit Wishlist -->
+    <div class="modal fade show" id="editWishlistModal" style="display: block;" tabindex="-1" aria-labelledby="editWishlistLabel" aria-modal="true" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editWishlistLabel">Edit Wishlist</h5>
+                    <button type="button" class="btn-close" @onclick="CancelEditWishlist"></button>
+                </div>
+                <div class="modal-body">
+                    <input @bind="_wishlistEditTitle" placeholder="Edit Wishlist Title" class="form-control" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEditWishlist">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveWishlistEdit">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (_isCreateModalVisible)
+{
+    <!-- Bootstrap Modal for Create Wishlist -->
+    <div class="modal fade show" id="createWishlistModal" style="display: block;" tabindex="-1" aria-labelledby="createWishlistLabel" aria-modal="true" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createWishlistLabel">Create Wishlist</h5>
+                    <button type="button" class="btn-close" @onclick="CancelCreateWishlist"></button>
+                </div>
+                <div class="modal-body">
+                    <input @bind="_newWishlistTitle" placeholder="New Wishlist Title" class="form-control" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelCreateWishlist">Close</button>
+                    <button type="button" class="btn btn-success" @onclick="CreateWishlist">Create Wishlist</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
+    private bool _isDataLoaded = false;
     private List<Wishlist> _wishlists = new();
     private string _newWishlistTitle = string.Empty;
     private Wishlist? _wishlistToDelete = null;
+    private bool _isDeleteModalVisible = false;
+    private bool _isEditModalVisible = false;
+    private bool _isCreateModalVisible = false;
+
+    private Wishlist? _wishlistToEdit = null;
+    private string _wishlistEditTitle = string.Empty;
 
     [Inject] private UserManager<ApplicationUser> UserManager { get; set; } = null!;
     [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
     [Inject] private ApplicationDbContext DbContext { get; set; } = null!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadWishlistsAsync();
+        _isDataLoaded = true;
     }
 
     private async Task LoadWishlistsAsync()
@@ -80,17 +169,21 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
+        _newWishlistTitle = _newWishlistTitle.Trim();
         if (!string.IsNullOrEmpty(_newWishlistTitle) && user != null)
         {
             var wishlist = new Wishlist
             {
                 Title = _newWishlistTitle,
-                UserId = user.Id
+                UserId = user.Id,
+                CreationDate = DateTime.UtcNow,
+                LastUpdated = DateTime.UtcNow
             };
             DbContext.Wishlists.Add(wishlist);
             await DbContext.SaveChangesAsync();
             _wishlists.Add(wishlist);
-            _newWishlistTitle = string.Empty; // Clear the wishlist title input
+            _newWishlistTitle = string.Empty;
+            _isCreateModalVisible = false; // Hide the modal once created
             StateHasChanged();
         }
     }
@@ -98,6 +191,7 @@
     private void ConfirmRemoveWishlist(Wishlist wishlist)
     {
         _wishlistToDelete = wishlist;
+        _isDeleteModalVisible = true;
     }
 
     private async Task RemoveWishlistConfirmed()
@@ -108,8 +202,7 @@
             var user = await UserManager.GetUserAsync(authState.User);
             if (user != null && _wishlistToDelete.UserId == user.Id)
             {
-                // Remove the wishlist from wishes
-                var wishes = _wishlistToDelete.Wishes.ToList(); // Materialize the list
+                var wishes = _wishlistToDelete.Wishes.ToList();
                 foreach (var wish in wishes)
                 {
                     wish.Wishlists.Remove(_wishlistToDelete);
@@ -119,6 +212,7 @@
                 await DbContext.SaveChangesAsync();
                 _wishlists.Remove(_wishlistToDelete);
                 _wishlistToDelete = null;
+                _isDeleteModalVisible = false;
                 StateHasChanged();
             }
         }
@@ -127,18 +221,61 @@
     private void CancelRemoveWishlist()
     {
         _wishlistToDelete = null;
+        _isDeleteModalVisible = false;
     }
 
-    private string FormatPrice(decimal price, string currency)
+    private void BeginEditWishlist(Wishlist wishlist)
     {
-        var culture = currency switch
-        {
-            "DKK" => new System.Globalization.CultureInfo("da-DK"),
-            "EUR" => new System.Globalization.CultureInfo("de-DE"),
-            "USD" => new System.Globalization.CultureInfo("en-US"),
-            _ => System.Globalization.CultureInfo.InvariantCulture,
-        };
+        _wishlistToEdit = wishlist;
+        _wishlistEditTitle = wishlist.Title;
+        _isEditModalVisible = true;
+    }
 
-        return string.Format(culture, "{0:C}", price);
+    private void CancelEditWishlist()
+    {
+        _wishlistToEdit = null;
+        _wishlistEditTitle = string.Empty;
+        _isEditModalVisible = false;
+    }
+
+    private async Task SaveWishlistEdit()
+    {
+        if (_wishlistToEdit != null)
+        {
+            _wishlistEditTitle = _wishlistEditTitle.Trim();
+            if (!string.IsNullOrWhiteSpace(_wishlistEditTitle))
+            {
+                var existingWishlist = await DbContext.Wishlists
+                    .FirstOrDefaultAsync(wl => wl.Id == _wishlistToEdit.Id);
+
+                if (existingWishlist != null)
+                {
+                    existingWishlist.Title = _wishlistEditTitle;
+                    existingWishlist.LastUpdated = DateTime.UtcNow;
+                    await DbContext.SaveChangesAsync();
+                    StateHasChanged();
+                }
+
+                _wishlistToEdit = null;
+                _wishlistEditTitle = string.Empty;
+                _isEditModalVisible = false;
+            }
+        }
+    }
+
+    private void ShowCreateWishlistModal()
+    {
+        _isCreateModalVisible = true;
+    }
+
+    private void CancelCreateWishlist()
+    {
+        _newWishlistTitle = string.Empty;
+        _isCreateModalVisible = false;
+    }
+
+    private void ShowWishlist(int wishlistId)
+    {
+        NavigationManager.NavigateTo($"/Wishlists/{wishlistId}");
     }
 }

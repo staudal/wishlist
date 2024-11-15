@@ -1,0 +1,367 @@
+@page "/Wishlists/{id:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Wishlist.Data
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext DbContext
+@layout Layout.AuthorizedLayout
+@rendermode InteractiveServer
+
+@attribute [Authorize]
+
+<PageTitle>Wishlist Details</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center">
+    <h1>@_wishlist?.Title</h1>
+    <button @onclick="ShowCreateWishModal" class="btn btn-success">Create Wish</button>
+</div>
+
+@if (!_isDataLoaded)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th class="align-middle">Title</th>
+            <th class="align-middle">Price</th>
+            <th class="align-middle">Image</th>
+            <th class="text-end align-middle">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var wish in _wishlist?.Wishes)
+        {
+            <tr>
+                <td class="align-middle">@wish.Title</td>
+                <td class="align-middle">@FormatPrice(wish.Price, wish.Currency)</td>
+                <td class="align-middle">
+                    @if (!string.IsNullOrWhiteSpace(wish.ImageUrl))
+                    {
+                        <img src="@wish.ImageUrl" alt="@(wish.Title) image" style="height: 50px;" />
+                    }
+                    else
+                    {
+                        <span>No Image</span>
+                    }
+                </td>
+                <td class="text-end align-middle">
+                    <button @onclick="() => BeginEditWish(wish)" class="btn btn-sm btn-primary">Edit</button>
+                    <button @onclick="() => ConfirmRemoveWish(wish)" class="btn btn-sm btn-danger">Remove</button>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@if (_isCreateWishModalVisible)
+{
+    <!-- Modal for Create Wish -->
+    <div class="modal fade show" style="display: block;" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Wish</h5>
+                    <button type="button" class="btn-close" @onclick="CancelCreateWish"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label for="newWishTitle">Wish Title</label>
+                        <input id="newWishTitle" @bind="_newWishTitle" placeholder="Wish Title" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="newWishImageUrl">Image URL</label>
+                        <input id="newWishImageUrl" @bind="_newWishImageUrl" placeholder="Image URL" class="form-control" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-2">
+                            <label for="newWishPrice">Price</label>
+                            <input id="newWishPrice" @bind-value="_newWishPriceString" placeholder="Price" class="form-control" type="text" />
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label for="newWishCurrency">Currency</label>
+                            <div class="input-group">
+                                <select id="newWishCurrency" @bind="_newWishCurrency" class="form-select">
+                                    <option value="DKK">DKK</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelCreateWish">Close</button>
+                    <button type="button" class="btn btn-success" @onclick="CreateWish">Create Wish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (_isEditWishModalVisible)
+{
+    <!-- Modal for Edit Wish -->
+    <div class="modal fade show" style="display: block;" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Wish</h5>
+                    <button type="button" class="btn-close" @onclick="CancelEditWish"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label for="editWishTitle">Wish Title</label>
+                        <input id="editWishTitle" @bind="_editWishTitle" placeholder="Wish Title" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="editWishImageUrl">Image URL</label>
+                        <input id="editWishImageUrl" @bind="_editWishImageUrl" placeholder="Image URL" class="form-control" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-2">
+                            <label for="editWishPrice">Price</label>
+                            <input id="editWishPrice" @bind-value="_editWishPriceString" placeholder="Price" class="form-control" type="text" />
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label for="editWishCurrency">Currency</label>
+                            <div class="input-group">
+                                <select id="editWishCurrency" @bind="_editWishCurrency" class="form-select">
+                                    <option value="DKK">DKK</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEditWish">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveWishEdit">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (_isDeleteWishModalVisible)
+{
+    <!-- Modal for Delete Wish Confirmation -->
+    <div class="modal fade show" style="display: block;" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Wish</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDeleteWish"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this wish?</p>
+                    <p><strong>@_wishToDelete?.Title</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDeleteWish">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteWish">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Wishlist? _wishlist = null;
+    private bool _isDataLoaded = false;
+    private bool _isCreateWishModalVisible = false;
+    private bool _isEditWishModalVisible = false;
+    private bool _isDeleteWishModalVisible = false;
+
+    private string _newWishTitle = string.Empty;
+    private string _newWishPriceString = "0"; 
+    private decimal _newWishPrice = 0; 
+    private string _newWishCurrency = "DKK";
+    private string _newWishImageUrl = string.Empty;
+
+    private Wish? _wishToEdit = null;
+    private string _editWishTitle = string.Empty;
+    private string _editWishPriceString = "0"; 
+    private decimal _editWishPrice = 0; 
+    private string _editWishCurrency = "DKK";
+    private string _editWishImageUrl = string.Empty;
+    
+    private Wish? _wishToDelete = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWishlist();
+    }
+
+    private async Task LoadWishlist()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user != null)
+        {
+            _wishlist = await DbContext.Wishlists.Include(wl => wl.Wishes).FirstOrDefaultAsync(wl => wl.Id == Id && wl.UserId == user.Id);
+            _isDataLoaded = true;
+            StateHasChanged();
+        }
+    }
+    
+    private void CancelDeleteWish()
+    {
+        _wishToDelete = null;
+        _isDeleteWishModalVisible = false;
+    }
+
+    private async Task DeleteWish()
+    {
+        if (_wishlist != null && _wishToDelete != null)
+        {
+            DbContext.Wishes.Remove(_wishToDelete);
+            await DbContext.SaveChangesAsync();
+
+            _wishToDelete = null;
+            _isDeleteWishModalVisible = false;
+
+            await LoadWishlist();
+        }
+    }
+
+    private void ShowCreateWishModal()
+    {
+        _isCreateWishModalVisible = true;
+    }
+
+    private void CancelCreateWish()
+    {
+        _newWishTitle = string.Empty;
+        _newWishPriceString = "0"; 
+        _newWishImageUrl = string.Empty;
+        _isCreateWishModalVisible = false;
+    }
+
+    private async Task CreateWish()
+    {
+        _newWishTitle = _newWishTitle.Trim();
+
+        if (_wishlist != null && !string.IsNullOrWhiteSpace(_newWishTitle) && TryParsePrice(_newWishPriceString, out _newWishPrice))
+        {
+            var newWish = new Wish
+            {
+                Title = _newWishTitle,
+                Price = _newWishPrice,
+                Currency = _newWishCurrency,
+                ImageUrl = _newWishImageUrl,
+                UserId = _wishlist.UserId,
+                Wishlists = new List<Wishlist> { _wishlist }
+            };
+
+            DbContext.Wishes.Add(newWish);
+            await DbContext.SaveChangesAsync();
+
+            _newWishTitle = string.Empty;
+            _newWishPriceString = "0";
+            _newWishImageUrl = string.Empty;
+            _newWishCurrency = "DKK";
+            _isCreateWishModalVisible = false;
+
+            await LoadWishlist();
+        }
+    }
+
+    private void BeginEditWish(Wish wish)
+    {
+        _wishToEdit = wish;
+        _editWishTitle = wish.Title;
+        _editWishPriceString = wish.Price.ToString("0.##");
+        _editWishCurrency = wish.Currency;
+        _editWishImageUrl = wish.ImageUrl;
+        _isEditWishModalVisible = true;
+    }
+
+    private void CancelEditWish()
+    {
+        _wishToEdit = null;
+        _editWishTitle = string.Empty;
+        _editWishPriceString = "0";
+        _editWishCurrency = "DKK";
+        _editWishImageUrl = string.Empty;
+        _isEditWishModalVisible = false;
+    }
+
+    private async Task SaveWishEdit()
+    {
+        if (_wishToEdit != null)
+        {
+            _editWishTitle = _editWishTitle.Trim();
+
+            if (!string.IsNullOrWhiteSpace(_editWishTitle) && TryParsePrice(_editWishPriceString, out _editWishPrice))
+            {
+                var existingWish = await DbContext.Wishes.FirstOrDefaultAsync(w => w.Id == _wishToEdit.Id);
+
+                if (existingWish != null)
+                {
+                    existingWish.Title = _editWishTitle;
+                    existingWish.Price = _editWishPrice;
+                    existingWish.Currency = _editWishCurrency;
+                    existingWish.ImageUrl = _editWishImageUrl;
+                    await DbContext.SaveChangesAsync();
+
+                    _wishToEdit = null;
+                    _editWishTitle = string.Empty;
+                    _editWishPriceString = "0";
+                    _editWishCurrency = "DKK";
+                    _editWishImageUrl = string.Empty;
+                    _isEditWishModalVisible = false;
+
+                    StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private void ConfirmRemoveWish(Wish wish)
+    {
+        _wishToDelete = wish;
+        _isDeleteWishModalVisible = true;
+    }
+
+    private string FormatPrice(decimal price, string currencyCode)
+    {
+        var culture = currencyCode switch
+        {
+            "DKK" => new System.Globalization.CultureInfo("da-DK"),
+            "EUR" => new System.Globalization.CultureInfo("fr-FR"),
+            "USD" => new System.Globalization.CultureInfo("en-US"),
+            _ => System.Globalization.CultureInfo.CurrentCulture,
+        };
+
+        return price.ToString("C2", culture);
+    }
+
+    private bool TryParsePrice(string value, out decimal result)
+    {
+        var modifiedValue = value.Replace(',', '.');
+        var isValid = decimal.TryParse(modifiedValue, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out result);
+        
+        // Ensure no more than two decimal places
+        result = decimal.Round(result, 2);
+        
+        return isValid;
+    }
+}
