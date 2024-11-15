@@ -6,7 +6,6 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ApplicationDbContext DbContext
-@layout Layout.AuthorizedLayout
 @rendermode InteractiveServer
 
 @attribute [Authorize]
@@ -24,43 +23,41 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th class="align-middle">Title</th>
-            <th class="align-middle">Price</th>
-            <th class="align-middle">Amount</th>
-            <th class="align-middle">Description</th>
-            <th class="align-middle">Image</th>
-            <th class="text-end align-middle">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach (var wish in _wishlist?.Wishes)
+    <div class="row">
+        @foreach (var wish in _wishlist?.Wishes ?? new List<Wish>())
         {
-            <tr>
-                <td class="align-middle">@wish.Title</td>
-                <td class="align-middle">@FormatPrice(wish.Price, wish.Currency)</td>
-                <td class="align-middle">@wish.Amount</td> <!-- Added Amount column -->
-                <td class="align-middle">@wish.Description</td> <!-- Added Description column -->
-                <td class="align-middle">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
                     @if (!string.IsNullOrWhiteSpace(wish.ImageUrl))
                     {
-                        <img src="@wish.ImageUrl" alt="@(wish.Title) image" style="height: 50px;" />
+                        <img src="@wish.ImageUrl" class="card-img-top" alt="@wish.Title image"
+                             style="height: 300px; width: 100%; object-fit: cover;">
                     }
                     else
                     {
-                        <span>No Image</span>
+                        <div class="card-img-top d-flex align-items-center justify-content-center"
+                             style="height: 200px; background-color: #f8f9fa;">
+                            <span>No Image</span>
+                        </div>
                     }
-                </td>
-                <td class="text-end align-middle">
-                    <button @onclick="() => BeginEditWish(wish)" class="btn btn-sm btn-primary">Edit</button>
-                    <button @onclick="() => ConfirmRemoveWish(wish)" class="btn btn-sm btn-danger">Remove</button>
-                </td>
-            </tr>
+                    <div class="card-body">
+                        <h5 class="card-title">@wish.Title</h5>
+                        <p class="card-text">@wish.Description</p>
+                        <p class="card-text"><strong>@FormatPrice(wish.Price, wish.Currency)</strong></p>
+                        <p class="card-text">Amount: @wish.Amount</p>
+                    </div>
+                    <div class="card-footer bg-transparent d-flex justify-content-between">
+                        @if (!string.IsNullOrEmpty(wish.LinkUrl))
+                        {
+                            <a href="@wish.LinkUrl" target="_blank" class="btn btn-sm btn-info">Visit</a>
+                        }
+                        <button @onclick="() => BeginEditWish(wish)" class="btn btn-sm btn-primary">Edit</button>
+                        <button @onclick="() => ConfirmRemoveWish(wish)" class="btn btn-sm btn-danger">Remove</button>
+                    </div>
+                </div>
+            </div>
         }
-        </tbody>
-    </table>
+    </div>
 }
 
 @if (_isCreateWishModalVisible)
@@ -87,6 +84,11 @@ else
                     <div class="mb-2">
                         <label for="newWishDescription">Description</label>
                         <textarea id="newWishDescription" @bind="_newWishDescription" placeholder="Description" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="newWishLinkUrl">Link URL</label>
+                        <input id="newWishLinkUrl" @bind="_newWishLinkUrl" placeholder="Link URL" class="form-control" />
                     </div>
 
                     <div class="mb-2">
@@ -146,6 +148,11 @@ else
                     <div class="mb-2">
                         <label for="editWishDescription">Description</label>
                         <textarea id="editWishDescription" @bind="_editWishDescription" placeholder="Description" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="editWishLinkUrl">Link URL</label>
+                        <input id="editWishLinkUrl" @bind="_editWishLinkUrl" placeholder="Link URL" class="form-control" />
                     </div>
 
                     <div class="mb-2">
@@ -221,6 +228,7 @@ else
     private string _newWishImageUrl = string.Empty;
     private int _newWishAmount = 1;
     private string _newWishDescription = string.Empty;
+    private string _newWishLinkUrl = string.Empty;
 
     private Wish? _wishToEdit = null;
     private string _editWishTitle = string.Empty;
@@ -230,6 +238,7 @@ else
     private string _editWishImageUrl = string.Empty;
     private int _editWishAmount = 1;
     private string _editWishDescription = string.Empty;
+    private string _editWishLinkUrl = string.Empty;
     
     private Wish? _wishToDelete = null;
 
@@ -299,7 +308,8 @@ else
                 UserId = _wishlist.UserId,
                 Wishlists = new List<Wishlist> { _wishlist },
                 Amount = _newWishAmount,
-                Description = _newWishDescription
+                Description = _newWishDescription,
+                LinkUrl = _newWishLinkUrl  // New field
             };
 
             DbContext.Wishes.Add(newWish);
@@ -311,6 +321,7 @@ else
             _newWishCurrency = "DKK";
             _newWishAmount = 1;
             _newWishDescription = string.Empty;
+            _newWishLinkUrl = string.Empty;
             _isCreateWishModalVisible = false;
 
             await LoadWishlist();
@@ -326,6 +337,7 @@ else
         _editWishImageUrl = wish.ImageUrl;
         _editWishAmount = wish.Amount;
         _editWishDescription = wish.Description;
+        _editWishLinkUrl = wish.LinkUrl; // New field
         _isEditWishModalVisible = true;
     }
 
@@ -344,7 +356,7 @@ else
         if (_wishToEdit != null)
         {
             _editWishTitle = _editWishTitle.Trim();
-            _editWishDescription = _editWishDescription.Trim();  // Trim the description
+            _editWishDescription = _editWishDescription.Trim();
 
             if (!string.IsNullOrWhiteSpace(_editWishTitle) && TryParsePrice(_editWishPriceString, out _editWishPrice))
             {
@@ -358,6 +370,7 @@ else
                     existingWish.ImageUrl = _editWishImageUrl;
                     existingWish.Amount = _editWishAmount;
                     existingWish.Description = _editWishDescription;
+                    existingWish.LinkUrl = _editWishLinkUrl;  // New field
                     await DbContext.SaveChangesAsync();
 
                     _wishToEdit = null;
@@ -367,6 +380,7 @@ else
                     _editWishImageUrl = string.Empty;
                     _editWishAmount = 1;
                     _editWishDescription = string.Empty;
+                    _editWishLinkUrl = string.Empty; // Reset field
                     _isEditWishModalVisible = false;
 
                     StateHasChanged();

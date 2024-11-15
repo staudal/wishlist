@@ -1,9 +1,10 @@
 ﻿@using Wishlist.Components.Account.Shared
+@using Wishlist.Components.Layout
 @inject NavigationManager Navigation
 
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="GetLayout(routeData.PageType)">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="@typeof(MainLayout)">
             <NotAuthorized>
                 <RedirectToLogin />
             </NotAuthorized>
@@ -11,12 +12,3 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1"/>
     </Found>
 </Router>
-
-@code {
-    private Type GetLayout(Type pageType)
-    {
-        // Apply AuthorizedLayout to all routes behind /dashboard
-        var url = Navigation.Uri;
-        return url.Contains("/dashboard") ? typeof(Layout.AuthorizedLayout) : typeof(Layout.MainLayout);
-    }
-}

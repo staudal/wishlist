@@ -27,5 +27,7 @@ namespace Wishlist.Data
         [Required] public int Amount { get; set; } = 1;
 
         public string? Description { get; set; }
+        
+        public string? LinkUrl { get; set; }  // New property
     }
 }
