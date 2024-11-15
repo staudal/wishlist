@@ -240,7 +240,7 @@ else
                                 <div>
                                     <strong>@link.Name:</strong> <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")">@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")</a>
                                 </div>
-                                <button @onclick="() => DeleteShareLink(link.Id)" class="btn btn-sm btn-danger">Delete</button>
+                                <button @onclick="() => ConfirmDeleteShareLink(link.Id)" class="btn btn-sm btn-danger">Delete</button>
                             </li>
                         }
                     </ul>
@@ -251,6 +251,30 @@ else
             </div>
         </div>
     </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (_isDeleteShareLinkModalVisible)
+{
+    <!-- Modal for Delete Share Link Confirmation -->
+    <div class="modal fade show" style="display: block;" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Share Link</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDeleteShareLink"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this share link?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDeleteShareLink">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteShareLinkConfirmed">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-backdrop fade show"></div>
 }
 
@@ -266,6 +290,8 @@ else
     private string _baseUri = string.Empty;
     private string _shareLinkName = string.Empty; // New addition
     private List<ShareLink> _shareLinks = new(); // New addition
+    private bool _isDeleteShareLinkModalVisible = false;
+    private int _shareLinkToDeleteId;
 
     private string _newWishTitle = string.Empty;
     private string _newWishPriceString = "0"; 
@@ -319,6 +345,27 @@ else
     {
         _wishToDelete = null;
         _isDeleteWishModalVisible = false;
+    }
+    
+    private void ConfirmDeleteShareLink(int linkId)
+    {
+        _isShareModalVisible = false;
+        _shareLinkToDeleteId = linkId;
+        _isDeleteShareLinkModalVisible = true;
+    }
+
+    private void CancelDeleteShareLink()
+    {
+        _shareLinkToDeleteId = 0;
+        _isDeleteShareLinkModalVisible = false;
+        _isShareModalVisible = true;
+    }
+
+    private async Task DeleteShareLinkConfirmed()
+    {
+        await DeleteShareLink(_shareLinkToDeleteId);
+        _isDeleteShareLinkModalVisible = false;
+        _isShareModalVisible = true;
     }
 
     private async Task DeleteWish()
