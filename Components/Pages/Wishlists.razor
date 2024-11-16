@@ -1,4 +1,4 @@
-﻿@page "/Wishlists"
+﻿@page "/wishlists"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
@@ -10,8 +10,10 @@
 <PageTitle>Wishlists</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center">
-    <h1>Wishlists</h1>
-    <button @onclick="() => ShowCreateWishlistModal()" class="btn btn-success">Create Wishlist</button>
+    <h1>My wishlists</h1>
+    <button @onclick="() => ShowCreateWishlistModal()" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> New wishlist
+    </button>
 </div>
 
 <AuthorizeView>
@@ -22,12 +24,12 @@
         }
         else
         {
-            <table class="table">
+            <table class="table table-bordered">
                 <thead>
                     <tr>
                         <th>Title</th>
-                        <th>Created On</th>    
-                        <th>Last Updated</th>
+                        <th>Created on</th>    
+                        <th>Last updated</th>
                         <th>Items</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -41,9 +43,15 @@
                             <td class="align-middle">@wishlist.LastUpdated.ToString("yyyy-MM-dd")</td>
                             <td class="align-middle">@wishlist.ItemsCount</td>
                             <td class="align-middle text-end">
-                                <button @onclick="() => BeginEditWishlist(wishlist)" class="btn btn-sm btn-primary">Edit</button>
-                                <button @onclick="() => ConfirmRemoveWishlist(wishlist)" class="btn btn-sm btn-danger">Remove</button>
-                                <button @onclick="() => ShowWishlist(wishlist.Id)" class="btn btn-sm btn-info">Show</button>
+                                <button @onclick="() => BeginEditWishlist(wishlist)" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit me-1"></i> Edit
+                                </button>
+                                <button @onclick="() => ConfirmRemoveWishlist(wishlist)" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash-alt me-1"></i> Remove
+                                </button>
+                                <button @onclick="() => ShowWishlist(wishlist.Id)" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye me-1"></i> Show
+                                </button>
                             </td>
                         </tr>
                     }
@@ -63,15 +71,19 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="staticBackdropLabel">Confirm Delete</h5>
+                    <h5 class="modal-title" id="staticBackdropLabel">Confirm the deletion</h5>
                     <button type="button" class="btn-close" @onclick="CancelRemoveWishlist"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete the wishlist «@(_wishlistToDelete?.Title)»?</p>
+                    <p>Are you sure you want to delete the wishlist <em><strong>@(_wishlistToDelete?.Title)</strong></em>?</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelRemoveWishlist">Close</button>
-                    <button type="button" class="btn btn-danger" @onclick="RemoveWishlistConfirmed">Delete</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelRemoveWishlist">
+                        <i class="fas fa-times me-1"></i> Close
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="RemoveWishlistConfirmed">
+                        <i class="fas fa-trash-alt me-1"></i> Delete
+                    </button>
                 </div>
             </div>
         </div>
@@ -87,15 +99,22 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editWishlistLabel">Edit Wishlist</h5>
+                    <h5 class="modal-title" id="editWishlistLabel">Edit wishlist</h5>
                     <button type="button" class="btn-close" @onclick="CancelEditWishlist"></button>
                 </div>
                 <div class="modal-body">
-                    <input @bind="_wishlistEditTitle" placeholder="Edit Wishlist Title" class="form-control" />
+                    <div class="d-flex flex-column gap-2">
+                        <label for="editWishlistTitle">Title</label>
+                        <input id="editWishlistTitle" @bind="_wishlistEditTitle" placeholder="My birthday" class="form-control" />
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelEditWishlist">Close</button>
-                    <button type="button" class="btn btn-primary" @onclick="SaveWishlistEdit">Save</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEditWishlist">
+                        <i class="fas fa-times me-1"></i> Close
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveWishlistEdit">
+                        <i class="fas fa-check me-1"></i> Save
+                    </button>
                 </div>
             </div>
         </div>
@@ -111,15 +130,22 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="createWishlistLabel">Create Wishlist</h5>
+                    <h5 class="modal-title" id="createWishlistLabel">New wishlist</h5>
                     <button type="button" class="btn-close" @onclick="CancelCreateWishlist"></button>
                 </div>
                 <div class="modal-body">
-                    <input @bind="_newWishlistTitle" placeholder="New Wishlist Title" class="form-control" />
+                    <div class="d-flex flex-column gap-2">
+                        <label for="newWishlistTitle">Title</label>
+                        <input id="newWishlistTitle" @bind="_newWishlistTitle" placeholder="My birthday" class="form-control" />
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelCreateWishlist">Close</button>
-                    <button type="button" class="btn btn-success" @onclick="CreateWishlist">Create Wishlist</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelCreateWishlist">
+                        <i class="fas fa-times me-1"></i> Close
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="CreateWishlist">
+                        <i class="fas fa-check me-1"></i> Create
+                    </button>
                 </div>
             </div>
         </div>
@@ -273,8 +299,8 @@
         _isCreateModalVisible = false;
     }
 
-    private void ShowWishlist(int wishlistId)
+    private void ShowWishlist(Guid wishlistId)
     {
-        NavigationManager.NavigateTo($"/Wishlists/{wishlistId}");
+        NavigationManager.NavigateTo($"/wishlists/{wishlistId}");
     }
 }

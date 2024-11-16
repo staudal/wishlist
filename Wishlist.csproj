@@ -17,4 +17,10 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Components\Modals\CreateWishlistModal.razor" />
+      <_ContentIncludedByDefault Remove="Components\Modals\DeleteWishlistModal.razor" />
+      <_ContentIncludedByDefault Remove="Components\Modals\EditWishlistModal.razor" />
+    </ItemGroup>
+
 </Project>

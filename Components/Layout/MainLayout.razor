@@ -3,14 +3,13 @@
 @inherits LayoutComponentBase
 
 <div>
-    <nav class="navbar bg-light">
+    <nav class="navbar navbar-dark" style="background-color: #1F2937">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand" href="@NavigationManager.ToAbsoluteUri("/")">saveyourwish</a>
             <div>
                 <AuthorizeView>
                     <Authorized>
                         <div class="d-flex align-items-center">
-                            <span>@context.User.Identity?.Name</span>
                             <form method="post" action="Account/Logout" style="margin: 0; padding: 0;">
                                 <AntiforgeryToken />
                                 <input type="hidden" name="returnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />

@@ -1,4 +1,4 @@
-@page "/Wishlists/{id:int}"
+@page "/wishlists/{id:guid}"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
@@ -274,10 +274,10 @@ else
                                         }
                                     </div>
                                     <div>
-                                        <a href="@(_baseUri + $"/SpecificSharedWishlist/{link.Token}")" target="_blank" class="btn btn-sm btn-primary">
+                                        <a href="@(_baseUri + $"/wishlists/shared/{link.Token}")" target="_blank" class="btn btn-sm btn-primary">
                                             <i class="fas fa-eye me-1"></i> View
                                         </a>
-                                        <button id="copyButton_@link.Id" @onclick="@(async () => await CopyToClipboard($"{_baseUri}/SpecificSharedWishlist/{link.Token}", $"copyButton_{link.Id}"))" class="btn btn-sm btn-secondary">
+                                        <button id="copyButton_@link.Id" @onclick="@(async () => await CopyToClipboard($"{_baseUri}/wishlists/shared/{link.Token}", $"copyButton_{link.Id}"))" class="btn btn-sm btn-secondary">
                                             <i class="fas fa-clipboard me-1"></i> Copy
                                         </button>
                                         <button @onclick="() => ConfirmDeleteShareLink(link.Id)" class="btn btn-sm btn-danger">
@@ -326,7 +326,7 @@ else
 }
 
 @code {
-    [Parameter] public int Id { get; set; }
+    [Parameter] public Guid Id { get; set; }
     private Wishlist? _wishlist = null;
     private bool _isDataLoaded = false;
     private bool _isCreateWishModalVisible = false;
@@ -338,7 +338,7 @@ else
     private string _shareLinkName = string.Empty;
     private List<ShareLink> _shareLinks = new();
     private bool _isDeleteShareLinkModalVisible = false;
-    private int _shareLinkToDeleteId;
+    private Guid _shareLinkToDeleteId;
     private DateTime? _shareLinkExpiryDate = DateTime.UtcNow.AddDays(30);
 
     private string _newWishTitle = string.Empty;
@@ -400,7 +400,7 @@ else
         _isDeleteWishModalVisible = false;
     }
     
-    private void ConfirmDeleteShareLink(int linkId)
+    private void ConfirmDeleteShareLink(Guid linkId)
     {
         _isShareModalVisible = false;
         _shareLinkToDeleteId = linkId;
@@ -409,7 +409,7 @@ else
 
     private void CancelDeleteShareLink()
     {
-        _shareLinkToDeleteId = 0;
+        _shareLinkToDeleteId = Guid.Empty;
         _isDeleteShareLinkModalVisible = false;
         _isShareModalVisible = true;
     }
@@ -604,14 +604,14 @@ else
             DbContext.ShareLinks.Add(shareLink);
             await DbContext.SaveChangesAsync();
 
-            _shareLink = _baseUri + $"/SpecificSharedWishlist/{shareLink.Token}";
+            _shareLink = _baseUri + $"/wishlists/shared/{shareLink.Token}";
             _shareLinkName = string.Empty;
 
             await LoadShareLinks();
         }
     }
 
-    private async Task DeleteShareLink(int linkId)
+    private async Task DeleteShareLink(Guid linkId)
     {
         var link = await DbContext.ShareLinks.FindAsync(linkId);
         if (link != null)

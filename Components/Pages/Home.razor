@@ -2,6 +2,10 @@
 @inject NavigationManager NavigationManager
 <PageTitle>Home</PageTitle>
 
-<h1>Wishlist</h1>
+<div class="text-center">
+    <h1>Wishlist</h1>
 
-Navigate to <a href="@NavigationManager.ToAbsoluteUri("wishlists")">wishlists</a>.
+    <div class="d-flex justify-content-center">
+        <a class="btn btn-primary" href="@NavigationManager.ToAbsoluteUri("wishlists")">Go to Wishlists</a>
+    </div>
+</div>

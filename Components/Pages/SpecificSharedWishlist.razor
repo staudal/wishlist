@@ -1,4 +1,4 @@
-@page "/SpecificSharedWishlist/{token}"
+@page "/wishlists/shared/{token}"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using Wishlist.Data
@@ -6,57 +6,54 @@
 
 <PageTitle>Shared Wishlist</PageTitle>
 
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center">
-        <h1>@(_wishlist?.Title ?? "Shared Wishlist")</h1>
-    </div>
-
-    @if (!_isDataLoaded)
+@if (!_isDataLoaded)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @if (_wishlist == null)
     {
-        <p>Loading...</p>
+        <div class="alert alert-danger">This wishlist is no longer available.</div>
     }
     else
     {
-        @if (_wishlist == null)
-        {
-            <div class="alert alert-danger">This wishlist is no longer available.</div>
-        }
-        else
-        {
-            <div class="row">
-                @foreach (var wish in _wishlist.Wishes)
-                {
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100">
-                            @if (!string.IsNullOrWhiteSpace(wish.ImageUrl))
-                            {
-                                <img src="@wish.ImageUrl" class="card-img-top" alt="@wish.Title image" style="height: 300px; width: 100%; object-fit: cover;">
-                            }
-                            else
-                            {
-                                <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa;">
-                                    <span>No Image</span>
-                                </div>
-                            }
-                            <div class="card-body">
-                                <h5 class="card-title">@wish.Title</h5>
-                                <p class="card-text">@wish.Description</p>
-                                <p class="card-text"><strong>@FormatPrice(wish.Price, wish.Currency)</strong></p>
-                                <p class="card-text">Amount: @wish.Amount</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>@_wishlist.Title</h1>
+        </div>
+        <div class="row">
+            @foreach (var wish in _wishlist.Wishes)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrWhiteSpace(wish.ImageUrl))
+                        {
+                            <img src="@wish.ImageUrl" class="card-img-top" alt="@wish.Title image" style="height: 300px; width: 100%; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa;">
+                                <span>No Image</span>
                             </div>
-                            @if (!string.IsNullOrEmpty(wish.LinkUrl))
-                            {
-                                <div class="card-footer bg-transparent d-flex justify-content-between">
-                                    <a href="@wish.LinkUrl" target="_blank" class="btn btn-sm btn-info">Visit</a>
-                                </div>
-                            }
+                        }
+                        <div class="card-body">
+                            <h5 class="card-title">@wish.Title</h5>
+                            <p class="card-text">@wish.Description</p>
+                            <p class="card-text"><strong>@FormatPrice(wish.Price, wish.Currency)</strong></p>
+                            <p class="card-text">Amount: @wish.Amount</p>
                         </div>
+                        @if (!string.IsNullOrEmpty(wish.LinkUrl))
+                        {
+                            <div class="card-footer bg-transparent d-flex justify-content-between">
+                                <a href="@wish.LinkUrl" target="_blank" class="btn btn-sm btn-info">Visit</a>
+                            </div>
+                        }
                     </div>
-                }
-            </div>
-        }
+                </div>
+            }
+        </div>
     }
-</div>
+}
 
 @code {
     [Parameter] public string token { get; set; } = default!;
