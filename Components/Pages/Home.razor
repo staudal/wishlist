@@ -1,7 +1,7 @@
 ﻿@page "/"
-
+@inject NavigationManager NavigationManager
 <PageTitle>Home</PageTitle>
 
 <h1>Wishlist</h1>
 
-Navigate to <a href="/Wishlists">/Wishlists</a> to see your wishlists.
+Navigate to <a href="@NavigationManager.ToAbsoluteUri("wishlists")">wishlists</a>.
