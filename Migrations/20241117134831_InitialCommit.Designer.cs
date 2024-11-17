@@ -12,8 +12,8 @@ using Wishlist.Data;
 namespace Wishlist.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241115071647_AddAmountAndDescriptionToWish")]
-    partial class AddAmountAndDescriptionToWish
+    [Migration("20241117134831_InitialCommit")]
+    partial class InitialCommit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -221,13 +221,43 @@ namespace Wishlist.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Wishlist.Data.ShareLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("WishlistId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("WishlistId");
+
+                    b.ToTable("ShareLinks");
+                });
+
             modelBuilder.Entity("Wishlist.Data.Wish", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Amount")
                         .HasColumnType("integer");
@@ -240,6 +270,9 @@ namespace Wishlist.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LinkUrl")
                         .HasColumnType("text");
 
                     b.Property<decimal>("Price")
@@ -262,11 +295,9 @@ namespace Wishlist.Migrations
 
             modelBuilder.Entity("Wishlist.Data.Wishlist", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("timestamp with time zone");
@@ -291,11 +322,11 @@ namespace Wishlist.Migrations
 
             modelBuilder.Entity("WishlistWish", b =>
                 {
-                    b.Property<int>("WishId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("WishId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("WishlistId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("WishlistId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("WishId", "WishlistId");
 
@@ -356,6 +387,17 @@ namespace Wishlist.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Wishlist.Data.ShareLink", b =>
+                {
+                    b.HasOne("Wishlist.Data.Wishlist", "Wishlist")
+                        .WithMany()
+                        .HasForeignKey("WishlistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Wishlist");
                 });
 
             modelBuilder.Entity("Wishlist.Data.Wish", b =>
